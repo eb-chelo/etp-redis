@@ -17,22 +17,27 @@ DECK = [
     'S7', 'S8', 'S9', 'S10', 'SJ', 'SQ', 'SK'
 ]
 
-@app.route('/cards', methods=['GET', 'PUT'])
+
+@app.route('/cards', methods=['GET'])
+@app.route('/shuffle', methods=['PUT'])
 def deck():
     def _decode(item):
         return item.decode('utf-8')
 
     if request.method == 'PUT':
-        redis_instance.delete('deck')
-        redis_instance.sadd('deck', *[card for card in DECK])
-        return json.loads({})
+        redis_instance.sunionstore('new_game_deck', 'deck')
+        return json.dumps({})
 
-    redis_instance.sunionstore('new_game_deck', 'deck')
     cards = redis_instance.spop('new_game_deck', 5)
     cards = map(_decode, cards)
     cards = list(cards)
     return json.dumps(cards)
 
 
+def _load_redis():
+    redis_instance.delete('deck')
+    redis_instance.sadd('deck', *[card for card in DECK])
+
 if __name__ == "__main__":
+    _load_redis()
     app.run()
