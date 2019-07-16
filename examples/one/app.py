@@ -18,12 +18,13 @@ DECK = [
 ]
 
 
+def _decode(item):
+    return item.decode('utf-8')
+
+
 @app.route('/cards', methods=['GET'])
 @app.route('/shuffle', methods=['PUT'])
 def deck():
-    def _decode(item):
-        return item.decode('utf-8')
-
     if request.method == 'PUT':
         redis_instance.sunionstore('new_game_deck', 'deck')
         return json.dumps({})
@@ -34,9 +35,31 @@ def deck():
     return json.dumps(cards)
 
 
+# --- Leaderboard
+
+@app.route('/leaderboard', methods=['PUT'])
+def leaderboard():
+    data = request.json
+    player = data['player']
+    score = data['score']
+    redis_instance.zadd('ranking', {player: score})
+    return json.dumps({})
+
+
+@app.route('/ranking', methods=['GET'])
+def ranking():
+    ranking = {}
+    _ranking = redis_instance.zrevrange('ranking', 0, -1, withscores=True)
+    for player, score in _ranking:
+        ranking[_decode(player)] = score
+
+    return json.dumps(ranking)
+
+
 def _load_redis():
     redis_instance.delete('deck')
     redis_instance.sadd('deck', *[card for card in DECK])
+
 
 if __name__ == "__main__":
     _load_redis()
